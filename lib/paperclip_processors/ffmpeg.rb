@@ -56,26 +56,16 @@ module Paperclip
         Ffmpeg.log("Adding rotation #{@meta[:rotate]}") if @whiny
         # If file has rotation, rotate it to horizontal.
         if @auto_rotate == "landscape"
-          case @meta[:rotate]
-          when 90
+          if @meta[:rotate] == 90
             @convert_options[:output][:vf] = 'transpose=1'
-          when 270
-            @convert_options[:output][:vf] = 'transpose=2'
-          end
-          if [90, 270].include? @meta[:rotate]
             rotated = true
           end
         end
 
         # If file has rotation, rotate it to portrait.
         if @auto_rotate == "portrait"
-          case @meta[:rotate]
-          when 0
+          if @meta[:rotate] == 0
             @convert_options[:output][:vf] = 'transpose=1'
-          when 180
-            @convert_options[:output][:vf] = 'transpose=2'
-          end
-          if [0, 180].include? @meta[:rotate]
             rotated = true
           end
         end
@@ -242,22 +232,16 @@ module Paperclip
         if line =~ /Duration:(\s.?(\d*):(\d*):(\d*\.\d*))/
           meta[:length] = $2.to_s + ":" + $3.to_s + ":" + $4.to_s
         end
-        if line =~ /rotate\s*:\s(\d*)/
-          meta[:rotate] = $1.to_i
-        end
+      end
+      current_width, current_height = meta[:size].split('x')
+      if current_width == current_height || current_width > current_height
+        meta[:rotate] = 0
+      elsif current_width < current_height
+        meta[:rotate] = 90
       end
       if @exiftool
         video = MiniExiftool.new(File.expand_path(@file.path))
-        meta[:rotate] ||= video['Rotation']
         meta = meta.merge(video.to_hash.delete_if{|k,v| k == "GoogleSourceData" || k == "GooglePingURL" || k == "GooglePingMessage" || k == "GoogleHostHeader"}.symbolize_keys!)
-      end
-      if meta[:rotate].nil?
-        current_width, current_height = meta[:size].split('x')
-        if current_width == current_height || current_width > current_height
-          meta[:rotate] = 0
-        elsif current_width < current_height
-          meta[:rotate] = 90
-        end
       end
       Paperclip.log("[ffmpeg] Command Success") if @whiny
       meta
